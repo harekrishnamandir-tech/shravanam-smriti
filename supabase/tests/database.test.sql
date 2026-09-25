@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(41);
+select plan(46);
 
 -- Users -----------------------------------------------------------------------
 delete from auth.users where email like '%@example.com'; -- drop seeded demo logins
@@ -58,6 +58,7 @@ select lives_ok($$ select public.course_dashboard('22222222-2222-2222-2222-22222
 select is(public.participant_courses((select id from public.participants where name_key = 'arjun mehta')),
           array['22222222-2222-2222-2222-222222222222'::uuid], 'participant_courses hides other courses from course admin');
 select throws_ok($$ select public.create_course('{"slug":"new-one","name":"New"}') $$, '42501', null, 'course admin cannot create courses');
+select throws_ok($$ select public.admin_directory() $$, '42501', null, 'course admin cannot list admins');
 select lives_ok($$ select public.update_course('22222222-2222-2222-2222-222222222222', '{"name":"Weekend Study"}') $$, 'course admin can edit own course');
 select throws_ok($$ select public.update_course('11111111-1111-1111-1111-111111111111', '{"name":"Hijack"}') $$, '42501', null, 'course admin cannot edit other course');
 reset role;
@@ -66,6 +67,13 @@ reset role;
 select pg_temp.login('a0000000-0000-0000-0000-000000000001');
 set local role authenticated;
 select is((select count(*) from public.courses)::int, 2, 'super admin sees all courses');
+select lives_ok($$ select public.invite_admin('New.Guide@Example.com', 'course_admin', array['22222222-2222-2222-2222-222222222222'::uuid]) $$,
+  'super admin invites a course admin with courses in one step');
+select is((select d->'course_ids' from jsonb_array_elements(public.admin_directory()) d where d->>'email' = 'new.guide@example.com'),
+  '["22222222-2222-2222-2222-222222222222"]'::jsonb, 'directory shows the invite with its course');
+select is((select array_agg(l->>'action' order by (l->>'id')::int) from jsonb_array_elements(public.admin_activity()) l where l->>'target_email' = 'new.guide@example.com'),
+  array['invite', 'courses'], 'invite and course grant are audited');
+select ok(public.access_requests() @> '[{"email":"stranger@example.com"}]', 'signed-in non-admins appear as access requests');
 select is(cardinality(public.participant_courses((select id from public.participants where name_key = 'arjun mehta'))), 2, 'super admin sees all courses of a devotee');
 
 select is(public.ingest_session($j${

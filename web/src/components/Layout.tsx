@@ -32,7 +32,7 @@ export function Layout() {
             <NavItem to="/upload">Upload</NavItem>
             <NavItem to="/admin/courses">Manage</NavItem>
             <NavItem to="/admin/participants">Devotees</NavItem>
-            {me?.role === 'super_admin' && <NavItem to="/admin/admins">Admins</NavItem>}
+            {me?.role === 'super_admin' && <NavItem to="/admin/admins">Users</NavItem>}
           </nav>
           <div className="flex items-center gap-2">
             <button

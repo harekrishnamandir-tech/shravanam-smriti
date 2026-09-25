@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
-import { Button, Field, Input, Select } from '../../components/ui'
+import { Button, Field, FieldGroup, Input, Select } from '../../components/ui'
 import { slugify } from '../../lib/format'
 import type { Course, CourseStatus } from '../../lib/types'
 
@@ -46,7 +46,9 @@ export function ChipsInput({
   placeholder,
   normalize = (s) => s.trim(),
   validate,
+  ariaLabel,
 }: {
+  ariaLabel?: string
   values: string[]
   onChange: (v: string[]) => void
   placeholder: string
@@ -84,6 +86,7 @@ export function ChipsInput({
           </span>
         ))}
         <input
+          aria-label={ariaLabel ?? placeholder}
           className="min-w-32 flex-1 bg-transparent px-1 text-sm text-ink outline-none placeholder:text-muted"
           value={text}
           placeholder={placeholder}
@@ -191,9 +194,9 @@ export function CourseForm({
           <Input type="number" min={1} max={100} value={d.regular_threshold_pct} onChange={(e) => set('regular_threshold_pct', Number(e.target.value))} />
         </Field>
       </div>
-      <Field label="Host accounts" hint="Names excluded from stats (e.g. the shared host login). Press Enter to add.">
-        <ChipsInput values={d.host_names} onChange={(v) => set('host_names', v)} placeholder="Add a name…" />
-      </Field>
+      <FieldGroup label="Host accounts" hint="Names excluded from stats (e.g. the shared host login). Press Enter to add.">
+        <ChipsInput values={d.host_names} onChange={(v) => set('host_names', v)} placeholder="Add a name…" ariaLabel="Add a host account name" />
+      </FieldGroup>
       <div className="flex justify-end">
         <Button type="submit" variant="primary" disabled={busy}>
           {busy ? 'Saving…' : submitLabel}
