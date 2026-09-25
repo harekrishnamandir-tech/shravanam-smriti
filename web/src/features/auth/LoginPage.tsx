@@ -64,6 +64,7 @@ export function LoginPage() {
         </svg>
         Continue with Google
       </Button>
+      {import.meta.env.DEV && <DevQuickLogin onError={setError} />}
       {emailLoginEnabled && (
         <form onSubmit={magic} className="mt-4 space-y-2 text-left">
           <p className="text-center text-xs text-muted">or get a sign-in link by email</p>
@@ -79,6 +80,34 @@ export function LoginPage() {
         </div>
       )}
     </Shell>
+  )
+}
+
+// Local development only: one-click sign-in as the seeded demo accounts
+// (supabase/seed.sql). `import.meta.env.DEV` is false in production builds,
+// so this is removed from the deployed site.
+const DEMO_ACCOUNTS = [
+  { email: 'admin@example.com', label: 'Super admin' },
+  { email: 'guide@example.com', label: 'Course admin' },
+  { email: 'visitor@example.com', label: 'No access' },
+]
+
+function DevQuickLogin({ onError }: { onError: (e: unknown) => void }) {
+  const signIn = async (email: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password: 'hare-krishna' })
+    if (error) onError(error)
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-dashed border-line p-3">
+      <p className="mb-2 text-xs text-muted">Local dev · quick sign-in</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {DEMO_ACCOUNTS.map((a) => (
+          <Button key={a.email} size="sm" onClick={() => signIn(a.email)} title={a.email}>
+            {a.label}
+          </Button>
+        ))}
+      </div>
+    </div>
   )
 }
 

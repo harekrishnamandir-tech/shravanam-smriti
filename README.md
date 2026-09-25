@@ -54,19 +54,31 @@ Analytics run in SQL. A single `course_dashboard()` call returns everything a pa
 
 ## Local development
 
-Requires Node 22 and Docker.
+Requires Docker (running), Node 22 and `make`.
 
 ```bash
-npx supabase start          # Postgres, Auth and Mailpit; applies migrations and seed
-npx supabase test db        # database tests
-cd web
-cp .env.example .env.local  # fill in the publishable key printed by `supabase start`
-npm install
-npm test
-npm run dev                 # http://localhost:5173/shravanam-smriti/
+make dev      # starts local Supabase, writes web/.env.local, installs deps, opens the app
 ```
 
-In development, sign in with an email link. Use `admin@example.com` (super admin) or `guide@example.com` (course admin); the link arrives in Mailpit at http://127.0.0.1:54324.
+On the login page, use the **Quick sign-in** buttons. They appear only in local dev and sign in as the seeded demo accounts (password `hare-krishna`, local only):
+
+| Button | Account | Sees |
+|---|---|---|
+| Super admin | `admin@example.com` | everything |
+| Course admin | `guide@example.com` | only the weekend course |
+| No access | `visitor@example.com` | the "no access" screen |
+
+Other targets (`make help` lists them all):
+
+| Command | What it does |
+|---|---|
+| `make test` | frontend unit tests + database (pgTAP) tests |
+| `make check` | typecheck, lint, tests and build: everything CI runs |
+| `make db-reset` | recreate the local database from migrations + demo seed |
+| `make studio` / `make mail` | open the local database UI / email inbox |
+| `make db-stop` | stop the Docker containers |
+
+Without `make`: run `npx supabase start`, copy `web/.env.example` to `web/.env.local` with the printed publishable key, then run `npm install && npm run dev` in `web/`.
 
 ## Production setup (free)
 

@@ -5,6 +5,7 @@ set search_path = public, extensions;
 select plan(33);
 
 -- Users -----------------------------------------------------------------------
+delete from auth.users where email like '%@example.com'; -- drop seeded demo logins
 insert into auth.users (id, email, email_confirmed_at) values
   ('a0000000-0000-0000-0000-000000000001', 'admin@example.com', now()),
   ('a0000000-0000-0000-0000-000000000002', 'guide@example.com', now()),

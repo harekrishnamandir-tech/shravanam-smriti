@@ -4,6 +4,30 @@
 insert into public.admins (email, role) values ('admin@example.com', 'super_admin'),
                                                ('guide@example.com', 'course_admin');
 
+-- Demo sign-in accounts for local development only (password: hare-krishna).
+-- Used by the dev-only "Quick sign-in" buttons; never present in production.
+do $$
+declare
+  u record;
+begin
+  for u in select * from (values
+    ('d0000000-0000-0000-0000-000000000001'::uuid, 'admin@example.com'),
+    ('d0000000-0000-0000-0000-000000000002'::uuid, 'guide@example.com'),
+    ('d0000000-0000-0000-0000-000000000003'::uuid, 'visitor@example.com')
+  ) as t(id, email) loop
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                            raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                            confirmation_token, recovery_token, email_change_token_new, email_change)
+    values ('00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authenticated', u.email,
+            extensions.crypt('hare-krishna', extensions.gen_salt('bf')), now(),
+            '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), u.id, u.id::text, jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+            'email', now(), now(), now());
+  end loop;
+end
+$$;
+
 insert into public.courses (id, slug, name, description, host_names, min_present_minutes, schedule_note, start_date)
 values
   ('11111111-1111-1111-1111-111111111111', 'gita-daily', 'Bhagavad Gita Daily Reading',
