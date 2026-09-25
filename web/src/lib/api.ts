@@ -1,7 +1,9 @@
 import { supabase } from './supabase'
 import type {
+  AccessRequest,
+  AdminEntry,
+  AdminLogEntry,
   AdminRole,
-  AdminRow,
   Course,
   CourseCard,
   Dashboard,
@@ -103,8 +105,12 @@ export const api = {
   /** Course ids a devotee has attended (limited by RLS to the caller's courses). */
   participantCourseIds: (id: string) => rpc<string[]>('participant_courses', { p_participant: id }),
 
-  admins: () => select<AdminRow[]>(supabase.from('admins').select('*').order('email')),
-  courseAdmins: () => select<{ email: string; course_id: string }[]>(supabase.from('course_admins').select('email, course_id')),
+  adminDirectory: () => rpc<AdminEntry[]>('admin_directory'),
+  accessRequests: () => rpc<AccessRequest[]>('access_requests'),
+  adminActivity: () => rpc<AdminLogEntry[]>('admin_activity', { p_limit: 50 }),
+  inviteAdmin: (email: string, role: AdminRole, courseIds: string[]) =>
+    rpc<void>('invite_admin', { p_email: email, p_role: role, p_courses: courseIds }),
+  dismissAccessRequest: (email: string) => rpc<void>('dismiss_access_request', { p_email: email }),
   upsertAdmin: (email: string, role: AdminRole) => rpc<void>('upsert_admin', { p_email: email, p_role: role }),
   removeAdmin: (email: string) => rpc<void>('remove_admin', { p_email: email }),
   setAdminCourses: (email: string, courseIds: string[]) =>

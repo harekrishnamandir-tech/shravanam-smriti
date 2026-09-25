@@ -25,10 +25,11 @@ dev: db-start env install ## Start everything and open the app in your browser
 	@node scripts/open.mjs $(APP_URL) &
 	cd web && npm run dev -- --port 5173 --strictPort
 
-install: web/node_modules ## Install web dependencies
-web/node_modules: web/package-lock.json
-	cd web && npm ci
-	@touch web/node_modules
+# Reinstall only when package-lock.json's contents change (timestamps are
+# unreliable after git checkouts). Stop `make dev` first if a reinstall is needed
+# on Windows, since the running server locks native binaries.
+install: ## Install web dependencies (skipped when up to date)
+	@cd web && hash=$$(node -e "process.stdout.write(require('crypto').createHash('sha1').update(require('fs').readFileSync('package-lock.json')).digest('hex'))") && 	if [ -f node_modules/.lock-hash ] && [ "$$(cat node_modules/.lock-hash)" = "$$hash" ]; then echo "web dependencies up to date"; 	else npm ci && echo "$$hash" > node_modules/.lock-hash; fi
 
 env: ## Write web/.env.local from the running local Supabase
 	@node scripts/dev-env.mjs

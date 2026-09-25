@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { useEffect, useRef, type ButtonHTMLAttributes, type ComponentProps, type ReactNode, type SelectHTMLAttributes } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -43,7 +43,7 @@ export function CardHeader({ title, subtitle, actions }: { title: ReactNode; sub
 const inputCls =
   'h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-muted focus:border-brand focus:outline-none'
 
-export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className = '', ...props }: ComponentProps<'input'>) {
   return <input className={`${inputCls} ${className}`} {...props} />
 }
 
@@ -62,6 +62,17 @@ export function Field({ label, hint, children }: { label: string; hint?: ReactNo
       {children}
       {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
+  )
+}
+
+/** Like Field, but for a group of controls (chips, radios, segmented buttons). */
+export function FieldGroup({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className="mb-1 block text-xs font-medium tracking-wide text-ink-2 uppercase">{label}</legend>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+    </fieldset>
   )
 }
 

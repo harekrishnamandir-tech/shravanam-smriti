@@ -142,8 +142,27 @@ export interface DirectoryEntry {
   courses: string[]
 }
 
-export interface AdminRow {
+export interface AdminEntry {
   email: string
   role: AdminRole
   created_at: string
+  course_ids: string[]
+  signed_up: boolean
+  last_sign_in_at: string | null
 }
+
+export interface AccessRequest {
+  email: string
+  created_at: string
+  last_sign_in_at: string | null
+}
+
+export interface AdminLogEntry {
+  id: number
+  actor_email: string | null
+  action: 'invite' | 'role' | 'courses' | 'remove' | 'dismiss'
+  target_email: string
+  details: { role?: AdminRole; from?: AdminRole; to?: AdminRole; added?: string[]; removed?: string[] }
+  at: string
+}
+
