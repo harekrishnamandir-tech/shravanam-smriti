@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(33);
+select plan(35);
 
 -- Users -----------------------------------------------------------------------
 delete from auth.users where email like '%@example.com'; -- drop seeded demo logins
@@ -55,6 +55,8 @@ select is((select count(*) from public.sessions where course_id = '11111111-1111
 select ok((select count(*) from public.sessions)::int > 0, 'course admin sees own sessions');
 select throws_ok($$ select public.course_dashboard('11111111-1111-1111-1111-111111111111') $$, '42501', null, 'course admin blocked from other dashboard');
 select lives_ok($$ select public.course_dashboard('22222222-2222-2222-2222-222222222222') $$, 'course admin loads own dashboard');
+select is(public.participant_courses((select id from public.participants where name_key = 'arjun mehta')),
+          array['22222222-2222-2222-2222-222222222222'::uuid], 'participant_courses hides other courses from course admin');
 select throws_ok($$ select public.create_course('{"slug":"new-one","name":"New"}') $$, '42501', null, 'course admin cannot create courses');
 select lives_ok($$ select public.update_course('22222222-2222-2222-2222-222222222222', '{"name":"Weekend Study"}') $$, 'course admin can edit own course');
 select throws_ok($$ select public.update_course('11111111-1111-1111-1111-111111111111', '{"name":"Hijack"}') $$, '42501', null, 'course admin cannot edit other course');
@@ -64,6 +66,7 @@ reset role;
 select pg_temp.login('a0000000-0000-0000-0000-000000000001');
 set local role authenticated;
 select is((select count(*) from public.courses)::int, 2, 'super admin sees all courses');
+select is(cardinality(public.participant_courses((select id from public.participants where name_key = 'arjun mehta'))), 2, 'super admin sees all courses of a devotee');
 
 select is(public.ingest_session($j${
   "course_id": "11111111-1111-1111-1111-111111111111", "mode": "create",

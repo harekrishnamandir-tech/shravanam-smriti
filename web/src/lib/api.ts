@@ -90,6 +90,13 @@ export const api = {
   mergeParticipants: (keep: string, merge: string) => rpc<void>('merge_participants', { p_keep: keep, p_merge: merge }),
   removeAlias: (key: string) => rpc<void>('remove_alias', { p_alias_key: key }),
 
+  participant: (id: string) =>
+    select<{ id: string; display_name: string; external_id: string | null; created_at: string; participant_aliases: { alias_key: string }[] } | null>(
+      supabase.from('participants').select('id, display_name, external_id, created_at, participant_aliases(alias_key)').eq('id', id).maybeSingle(),
+    ),
+  /** Course ids a devotee has attended (limited by RLS to the caller's courses). */
+  participantCourseIds: (id: string) => rpc<string[]>('participant_courses', { p_participant: id }),
+
   admins: () => select<AdminRow[]>(supabase.from('admins').select('*').order('email')),
   courseAdmins: () => select<{ email: string; course_id: string }[]>(supabase.from('course_admins').select('email, course_id')),
   upsertAdmin: (email: string, role: AdminRole) => rpc<void>('upsert_admin', { p_email: email, p_role: role }),

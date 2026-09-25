@@ -18,3 +18,11 @@ export function useDashboard(courseId: string | undefined, opts: { from?: string
     placeholderData: (prev) => (prev?.course.id === courseId ? prev : undefined),
   })
 }
+
+/** All-time dashboard query options (same cache key as useDashboard(id, {})). */
+export function allTimeDashboardQuery(courseId: string) {
+  return {
+    queryKey: ['dashboard', courseId, '', '', null] as const,
+    queryFn: () => api.dashboard(courseId, {}),
+  }
+}

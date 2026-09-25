@@ -106,7 +106,10 @@ export function ParticipantPage() {
         </div>
         <p className="mt-1 text-sm text-muted">
           First heard {fmtDate(p.first_ever_date ?? p.first_date)} · last seen {fmtDate(p.last_date)}
-          {aliases.length > 0 && <> · also appears as {aliases.join(', ')}</>}
+          {aliases.length > 0 && <> · also appears as {aliases.join(', ')}</>} ·{' '}
+          <Link to={`/d/${p.id}`} className="text-brand hover:underline">
+            All courses & overall profile →
+          </Link>
         </p>
       </div>
 

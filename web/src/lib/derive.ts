@@ -67,6 +67,13 @@ export function weekdayOf(date: string): number {
   return (new Date(date + 'T12:00:00Z').getUTCDay() + 6) % 7
 }
 
+/** Count of dates per weekday, Monday first. */
+export function byWeekdayIndex(dates: string[]): number[] {
+  const out = [0, 0, 0, 0, 0, 0, 0]
+  for (const d of dates) out[weekdayOf(d)]++
+  return out
+}
+
 export function byWeekday(sessions: SessionStat[]): { label: string; sessions: number; avgHeadcount: number }[] {
   const acc = WEEKDAYS.map((label) => ({ label, sessions: 0, total: 0 }))
   for (const s of sessions) {

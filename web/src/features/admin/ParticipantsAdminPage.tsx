@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button, Card, CardHeader, ErrorBox, Field, Input, Modal, Select, Spinner } from '../../components/ui'
 import { api } from '../../lib/api'
 import { fmtDate } from '../../lib/format'
@@ -33,7 +34,7 @@ export function ParticipantsAdminPage() {
   }, [dir.data, q])
   const byId = new Map((dir.data ?? []).map((p) => [p.id, p]))
   const pickedEntries = picked.map((id) => byId.get(id)).filter(Boolean) as DirectoryEntry[]
-  const courseName = new Map((courses.data ?? []).map((c) => [c.id, c.name]))
+  const courseById = new Map((courses.data ?? []).map((c) => [c.id, c]))
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 2 ? [p[1], id] : [...p, id]))
@@ -110,13 +111,26 @@ export function ParticipantsAdminPage() {
                   ) : (
                     <>
                       <p className="font-medium text-ink">
-                        {p.name}{' '}
+                        <Link to={`/d/${p.id}`} className="hover:text-brand hover:underline" title="Open profile">
+                          {p.name}
+                        </Link>{' '}
                         <button className="text-xs text-muted hover:text-brand" onClick={() => setEditing({ id: p.id, name: p.name })}>
                           rename
                         </button>
                       </p>
                       <p className="text-xs text-muted">
-                        {p.sessions} sessions · last {fmtDate(p.last_date)} · {p.courses.map((c) => courseName.get(c) ?? '').filter(Boolean).join(', ')}
+                        {p.sessions} sessions · last {fmtDate(p.last_date)} ·{' '}
+                        {p.courses.map((c, i) => {
+                          const course = courseById.get(c)
+                          return course ? (
+                            <span key={c}>
+                              {i > 0 && ', '}
+                              <Link to={`/c/${course.slug}/p/${p.id}`} className="hover:text-brand hover:underline">
+                                {course.name}
+                              </Link>
+                            </span>
+                          ) : null
+                        })}
                       </p>
                     </>
                   )}
