@@ -137,11 +137,38 @@ After step 1.3 (so you don't lock yourself out): **Authentication → Hooks → 
 
 ### 5. Backups and one-click migrations (optional)
 
-Add these as **Actions secrets** (not variables):
-- `SUPABASE_DB_URL`: from the dashboard's **Connect** button, the **Session pooler** connection string with your database password filled in. (The direct connection is IPv6-only and GitHub runners can't reach it.)
-- `BACKUP_AGE_PUBLIC_KEY`: run `age-keygen -o backup-key.txt` locally and use the `age1…` public key. Keep `backup-key.txt` offline; it's the only way to decrypt backups.
+Two workflows need database access: **Apply database migrations** (run manually) and **Encrypted database backup** (weekly). Both read these **repository** secrets. Use repository secrets, not environment secrets (the backup job has no environment, so it couldn't read them) and not organization secrets (other repos could read them).
 
-The **Encrypted database backup** workflow then runs weekly. To restore: download the artifact, run `age -d -i backup-key.txt backup-*.tar.gz.age | tar xz`, then `psql "<connection-string>" -f schema.sql -f data.sql`.
+#### `SUPABASE_DB_URL`
+
+1. **Get the Session pooler connection string.** In the Supabase dashboard, open your project, click **Connect** in the top bar, then on the **Connection String** tab choose **Type: URI** and **Method: Session pooler** (keep **Source: Primary database** if shown). It looks like:
+   ```
+   postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+   - The user is `postgres.<project-ref>`, not plain `postgres`.
+   - **Don't use the Direct connection** (`db.<project-ref>.supabase.co`). It's IPv6-only, and GitHub-hosted runners can't reach it.
+   - If you've run `npx supabase link`, the same address (without the password) is in `supabase/.temp/pooler-url`, which is gitignored.
+2. **Fill in the password.** Replace `[YOUR-PASSWORD]` with the database password.
+   - Forgot it? **Project Settings → Database → Reset database password**. The app itself doesn't use this password, only these workflows.
+   - URL-encode special characters: `@` → `%40`, `:` → `%3A`, `/` → `%2F`, `#` → `%23`, `%` → `%25`, `?` → `%3F`. A password of only letters and digits avoids this.
+3. **Save it from your own terminal**, so the password never ends up in a chat, issue or shell history. `gh` prompts with hidden input:
+   ```bash
+   gh secret set SUPABASE_DB_URL -R <owner>/<repo>
+   ```
+   Or use **Settings → Secrets and variables → Actions → New repository secret** on GitHub.
+4. **Check it works:** **Actions → Apply database migrations → Run workflow**. It prints the migrations it applied (or that the database is up to date).
+
+#### `BACKUP_AGE_PUBLIC_KEY`
+
+1. Install [age](https://github.com/FiloSottile/age) and run `age-keygen -o backup-key.txt`.
+2. Save the printed public key (starts with `age1…`; it isn't secret) as a repository secret named `BACKUP_AGE_PUBLIC_KEY`.
+3. Keep `backup-key.txt` offline (password manager or an encrypted drive). It's the only way to decrypt backups, and it must never be committed.
+
+The **Encrypted database backup** workflow then runs weekly and keeps 90 days of artifacts. To restore: download the artifact, run `age -d -i backup-key.txt backup-*.tar.gz.age | tar xz`, then `psql "<connection-string>" -f schema.sql -f data.sql`.
+
+#### Applying schema changes after a merge
+
+When a pull request adds files under `supabase/migrations/`, apply them after merging, via **Actions → Apply database migrations → Run workflow**, or locally with `npx supabase db push`. New migrations are written to be additive, so applying them just before or after the site redeploys is safe.
 
 ### 6. Keep-alive
 
