@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, Empty, ErrorBox, Field, Select, Spinner } from '../../components/ui'
 import { api } from '../../lib/api'
-import { fmtDate, fmtDateTime, fmtDuration } from '../../lib/format'
+import { fmtClock, fmtDate, fmtDateTime, fmtDuration, fmtTime } from '../../lib/format'
 import { nameKey } from '../../lib/nameKey'
 import { MeetParseError, parseMeetCsv, type ParsedMeeting } from '../../lib/parseMeetCsv'
 import type { Course, IngestMode, SessionRecord } from '../../lib/types'
@@ -44,7 +44,7 @@ export function UploadPage() {
     for (const f of list) {
       const id = `f${++seq}`
       if (f.size > MAX_FILE_BYTES) {
-        next.push({ id, fileName: f.name, error: 'File is larger than 2 MB — is this a Meet attendance export?' })
+        next.push({ id, fileName: f.name, error: 'File is larger than 2 MB - is this a Meet attendance export?' })
         continue
       }
       try {
@@ -68,7 +68,7 @@ export function UploadPage() {
       <div>
         <h1 className="font-display text-4xl font-semibold text-ink">{replaceId ? 'Replace session' : 'Upload attendance'}</h1>
         <p className="mt-1 text-sm text-muted">
-          Drop Google Meet attendance exports (.csv). Files are read <strong>in your browser</strong> — only names, join times and
+          Drop Google Meet attendance exports (.csv). Files are read <strong>in your browser</strong> - only names, join times and
           minutes are saved; the file itself is never uploaded or stored.
         </p>
         {replaceId && replaceSession.data && (
@@ -176,15 +176,21 @@ function UploadCard({
   const hosts = uniqueNames.filter((n) => hostKeys.has(nameKey(n)))
 
   const preview = useQuery({
-    queryKey: ['uploadPreview', courseId, m.sessionDate, m.fileName, m.rows.length],
-    queryFn: () => api.uploadPreview(courseId, m.sessionDate, uniqueNames),
+    queryKey: ['uploadPreview', courseId, m.startedAt, m.endedAt, m.fileName, m.rows.length],
+    queryFn: () => api.uploadPreview(courseId, m, uniqueNames),
     enabled: Boolean(courseId),
     staleTime: 0,
   })
 
-  const existing = (preview.data?.existing ?? []).filter((s) => s.id !== replaceTarget?.id)
+  const tz = course?.timezone
+  const at = (s: SessionRecord) => `${fmtTime(s.started_at, tz)}–${fmtTime(s.ended_at, tz)}`
+  // Sessions that day (other than the one being replaced). Only a session whose
+  // time overlaps this file is the "same" session; others are separate classes.
+  const sameDay = (preview.data?.existing ?? []).filter((s) => s.id !== replaceTarget?.id)
+  const overlapping = sameDay.filter((s) => s.overlaps)
+  const otherTimes = sameDay.filter((s) => !s.overlaps)
   const newNames = (preview.data?.names ?? []).filter((n) => n.is_new && !hostKeys.has(n.key))
-  const needsChoice = !replaceTarget && existing.length > 0
+  const needsChoice = !replaceTarget && overlapping.length > 0
 
   const submit = async () => {
     setBusy(true)
@@ -197,7 +203,7 @@ function UploadCard({
         sessionId = replaceTarget.id
       } else if (needsChoice) {
         mode = choice === 'append' ? 'append' : 'replace'
-        sessionId = choice === 'replace' ? targetId || existing[0].id : undefined
+        sessionId = choice === 'replace' ? targetId || overlapping[0].id : undefined
       }
       const res = await api.ingest(m, {
         courseId,
@@ -210,7 +216,7 @@ function UploadCard({
       })
       if (res.status === 'exists') {
         await preview.refetch()
-        setError(new Error('A session already exists for this date. Choose whether to replace it or add another session.'))
+        setError(new Error('A session at this time already exists. Choose whether to replace it or keep both.'))
       } else {
         setDone({ action: res.action, newPeople: res.new_participants, session: res.session })
         invalidateCourseData(qc)
@@ -228,7 +234,7 @@ function UploadCard({
       <Card className="border-[color-mix(in_oklab,var(--good)_40%,transparent)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-ink">
-            <span className="text-good">✓</span> <strong>{m.fileName}</strong> — {done.action === 'replace' ? 'replaced' : 'imported'}{' '}
+            <span className="text-good">✓</span> <strong>{m.fileName}</strong> - {done.action === 'replace' ? 'replaced' : 'imported'}{' '}
             {fmtDate(done.session.session_date)}
             {done.session.seq > 1 ? ` (session ${done.session.seq})` : ''}: {done.session.rows} devotees, {done.newPeople} new.
           </p>
@@ -242,7 +248,8 @@ function UploadCard({
     )
   }
 
-  const canSubmit = courseId && !busy && !preview.isLoading && (!needsChoice || (choice !== '' && choice !== 'skip'))
+  const blockedReplace = Boolean(replaceTarget) && overlapping.length > 0
+  const canSubmit = courseId && !busy && !preview.isLoading && !blockedReplace && (!needsChoice || (choice !== '' && choice !== 'skip'))
 
   return (
     <Card>
@@ -252,7 +259,7 @@ function UploadCard({
             {m.fileName}
           </p>
           <p className="mt-0.5 text-sm text-muted">
-            {fmtDate(m.sessionDate)} · {m.startedAt.slice(11, 16)}–{m.endedAt.slice(11, 16)} · {fmtDuration(m.durationSec)} ·{' '}
+            {fmtDate(m.sessionDate)} · {fmtClock(m.startedAt)}–{fmtClock(m.endedAt)} · {fmtDuration(m.durationSec)} ·{' '}
             {uniqueNames.length} people{m.meetingCode ? ` · ${m.meetingCode}` : ''}
           </p>
         </div>
@@ -295,38 +302,58 @@ function UploadCard({
         </div>
       )}
 
+      {otherTimes.length > 0 && !needsChoice && !blockedReplace && (
+        <p className="mt-4 rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink-2">
+          This course has {otherTimes.length === 1 ? 'another session' : `${otherTimes.length} other sessions`} on {fmtDate(m.sessionDate)} (
+          {otherTimes.map(at).join(', ')}). This file is at a different time, so it will be saved as a separate session.
+        </p>
+      )}
+
+      {blockedReplace && (
+        <div className="mt-4">
+          <ErrorBox
+            error={`This file (${fmtClock(m.startedAt)}–${fmtClock(m.endedAt)}) overlaps a different session (${overlapping.map(at).join(', ')}). Replace that session instead, or upload the file normally.`}
+          />
+        </div>
+      )}
+
       {needsChoice && (
         <fieldset className="mt-4 rounded-xl border border-[color-mix(in_oklab,var(--saffron)_45%,transparent)] bg-[color-mix(in_oklab,var(--saffron)_7%,transparent)] p-4">
-          <legend className="px-1 text-sm font-semibold text-saffron">A session already exists on {fmtDate(m.sessionDate)}</legend>
+          <legend className="px-1 text-sm font-semibold text-saffron">
+            A session at this time already exists on {fmtDate(m.sessionDate)}
+          </legend>
           <div className="mb-3 grid gap-2 text-sm md:grid-cols-2">
-            {existing.map((s) => (
+            {overlapping.map((s) => (
               <div key={s.id} className="rounded-lg bg-surface px-3 py-2">
-                <span className="font-medium text-ink">Existing{existing.length > 1 ? ` #${s.seq}` : ''}:</span> {s.rows} rows ·{' '}
-                {fmtDuration(s.duration_sec)} · {s.source_filename ?? 'unknown file'}
+                <span className="font-medium text-ink">Existing {at(s)}:</span> {s.rows} rows · {fmtDuration(s.duration_sec)} ·{' '}
+                {s.source_filename ?? 'unknown file'}
               </div>
             ))}
             <div className="rounded-lg bg-surface px-3 py-2">
-              <span className="font-medium text-ink">This file:</span> {m.rows.length} rows · {fmtDuration(m.durationSec)}
+              <span className="font-medium text-ink">
+                This file {fmtClock(m.startedAt)}–{fmtClock(m.endedAt)}:
+              </span>{' '}
+              {m.rows.length} rows · {fmtDuration(m.durationSec)}
             </div>
           </div>
           <div className="space-y-2 text-sm">
-            {existing.map((s) => (
+            {overlapping.map((s) => (
               <label key={s.id} className="flex items-center gap-2">
                 <input
                   type="radio"
                   name={`choice-${m.fileName}`}
-                  checked={choice === 'replace' && (targetId || existing[0].id) === s.id}
+                  checked={choice === 'replace' && (targetId || overlapping[0].id) === s.id}
                   onChange={() => {
                     setChoice('replace')
                     setTargetId(s.id)
                   }}
                 />
-                Replace the existing session{existing.length > 1 ? ` #${s.seq}` : ''}
+                Replace the {at(s)} session
               </label>
             ))}
             <label className="flex items-center gap-2">
               <input type="radio" name={`choice-${m.fileName}`} checked={choice === 'append'} onChange={() => setChoice('append')} />
-              Keep both — save as another session that day
+              Keep both - save as a separate session
             </label>
             <label className="flex items-center gap-2">
               <input type="radio" name={`choice-${m.fileName}`} checked={choice === 'skip'} onChange={() => setChoice('skip')} />
@@ -340,7 +367,7 @@ function UploadCard({
         <details className="mt-4 rounded-xl border border-line p-4" open={newNames.some((n) => n.suggestions.length > 0)}>
           <summary className="cursor-pointer text-sm font-medium text-ink">
             {newNames.length} new name{newNames.length === 1 ? '' : 's'}
-            {newNames.some((n) => n.suggestions.length) && ' — some look like existing devotees'}
+            {newNames.some((n) => n.suggestions.length) && ' - some look like existing devotees'}
           </summary>
           <ul className="mt-3 space-y-2 text-sm">
             {newNames.map((n) => (

@@ -1,4 +1,4 @@
-/** A peacock feather — Krishna's crown ornament. */
+/** A peacock feather - Krishna's crown ornament. */
 export function Feather({ className = 'h-8 w-8' }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">

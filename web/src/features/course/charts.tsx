@@ -2,10 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { EChart } from '../../components/charts/EChart'
 import { barTop, chrome } from '../../components/charts/chartTheme'
 import { byMonth, byWeekday, histogram, joinBuckets, presentCells } from '../../lib/derive'
-import { fmtDate, fmtMonth, fmtShortDate } from '../../lib/format'
+import { fmtDate, fmtMonth, fmtTime, sessionLabeler } from '../../lib/format'
 import type { Dashboard, ParticipantStat, SessionStat } from '../../lib/types'
 
-const sessionLabel = (s: SessionStat) => fmtShortDate(s.date) + (s.seq > 1 ? ` (${s.seq})` : '')
 
 function zoom(n: number) {
   if (n <= 30) return []
@@ -20,11 +19,14 @@ export function SessionsChart({
   sessions,
   selected,
   onSelect,
+  tz,
 }: {
   sessions: SessionStat[]
   selected: string | null
   onSelect: (id: string | null) => void
+  tz: string
 }) {
+  const label = sessionLabeler(sessions, tz)
   return (
     <EChart
       ariaLabel="Headcount per session, split into returning and first-time devotees"
@@ -65,13 +67,13 @@ export function SessionsChart({
             axisPointer: { type: 'shadow' },
             formatter: (ps: { dataIndex: number }[]) => {
               const s = sessions[ps[0].dataIndex]
-              return `<b>${fmtDate(s.date)}${s.seq > 1 ? ` · session ${s.seq}` : ''}</b><br/>
+              return `<b>${fmtDate(s.date)} · ${fmtTime(s.started_at, tz)}</b><br/>
                 ${s.headcount} present · ${s.returning_count} returning · ${s.new_count} first time<br/>
                 Avg ${Math.round(s.avg_seconds / 60)} min of ${Math.round(s.duration_sec / 60)} · ${s.full_count} stayed to the end<br/>
                 <span style="opacity:.7">Click to filter devotees</span>`
             },
           },
-          xAxis: { ...t.categoryAxis, data: sessions.map(sessionLabel) },
+          xAxis: { ...t.categoryAxis, data: sessions.map(label) },
           yAxis: { ...t.valueAxis, name: 'devotees', minInterval: 1 },
           dataZoom: zoom(sessions.length),
           series: [series('Returning', t.colors.s1, 'returning_count', false), series('First time', t.colors.s2, 'new_count', true)],
@@ -81,7 +83,8 @@ export function SessionsChart({
   )
 }
 
-export function AvgMinutesChart({ sessions }: { sessions: SessionStat[] }) {
+export function AvgMinutesChart({ sessions, tz }: { sessions: SessionStat[]; tz: string }) {
+  const label = sessionLabeler(sessions, tz)
   return (
     <EChart
       ariaLabel="Average minutes in the call per session"
@@ -96,11 +99,11 @@ export function AvgMinutesChart({ sessions }: { sessions: SessionStat[] }) {
             trigger: 'axis',
             formatter: (ps: { dataIndex: number }[]) => {
               const s = sessions[ps[0].dataIndex]
-              return `<b>${fmtDate(s.date)}</b><br/>Avg ${Math.round(s.avg_seconds / 60)} min · session ${Math.round(s.duration_sec / 60)} min`
+              return `<b>${fmtDate(s.date)} · ${fmtTime(s.started_at, tz)}</b><br/>Avg ${Math.round(s.avg_seconds / 60)} min · session ${Math.round(s.duration_sec / 60)} min`
             },
           },
           grid: { ...t.base.grid, top: 24, bottom: sessions.length > 30 ? 32 : 8 },
-          xAxis: { ...t.categoryAxis, data: sessions.map(sessionLabel), boundaryGap: false },
+          xAxis: { ...t.categoryAxis, data: sessions.map(label), boundaryGap: false },
           yAxis: { ...t.valueAxis, name: 'minutes' },
           dataZoom: zoom(sessions.length),
           series: [
@@ -136,6 +139,7 @@ export function AttendanceHeatmap({
   const cells = presentCells(d)
     .filter((c) => rowIdx.has(c[1]) && colIdx.has(c[0]))
     .map((c) => [colIdx.get(c[0])!, rowIdx.get(c[1])!, Math.round(c[2] / 60)])
+  const label = sessionLabeler(d.sessions, d.course.timezone)
   const maxMin = Math.max(30, ...d.sessions.map((s) => Math.round(s.duration_sec / 60)))
 
   return (
@@ -156,10 +160,10 @@ export function AttendanceHeatmap({
             ...t.base.tooltip,
             formatter: (p: { data: number[] }) => {
               const [x, y, m] = p.data
-              return `<b>${rows[y].name}</b><br/>${fmtDate(d.sessions[x].date)} · ${m} min`
+              return `<b>${rows[y].name}</b><br/>${fmtDate(d.sessions[x].date)} · ${fmtTime(d.sessions[x].started_at, d.course.timezone)} · ${m} min`
             },
           },
-          xAxis: { ...t.categoryAxis, data: d.sessions.map(sessionLabel), splitArea: { show: false } },
+          xAxis: { ...t.categoryAxis, data: d.sessions.map(label), splitArea: { show: false } },
           yAxis: {
             ...t.categoryAxis,
             data: rows.map((r) => r.name),

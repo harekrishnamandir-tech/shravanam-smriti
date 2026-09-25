@@ -19,7 +19,7 @@ const dateTimeFmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', ti
 
 /** `YYYY-MM-DD` -> "23 Sep 2026" without timezone drift. */
 export function fmtDate(d: string | null | undefined): string {
-  if (!d) return '—'
+  if (!d) return '-'
   return dateFmt.format(new Date(d.slice(0, 10) + 'T12:00:00'))
 }
 
@@ -28,11 +28,38 @@ export function fmtShortDate(d: string): string {
 }
 
 export function fmtDateTime(ts: string | null | undefined): string {
-  return ts ? dateTimeFmt.format(new Date(ts)) : '—'
+  return ts ? dateTimeFmt.format(new Date(ts)) : '-'
+}
+
+/** Wall-clock time of a timestamp in the course's timezone, e.g. "8:21 PM". */
+export function fmtTime(ts: string, timeZone?: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeStyle: 'short', timeZone }).format(new Date(ts))
+  } catch {
+    return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date(ts))
+  }
+}
+
+/** Format a local wall-clock string ("YYYY-MM-DD HH:MM:SS") as a time, e.g. "8:35 PM". */
+export function fmtClock(local: string): string {
+  return new Intl.DateTimeFormat(undefined, { timeStyle: 'short', timeZone: 'UTC' }).format(new Date(local.replace(' ', 'T') + 'Z'))
+}
+
+/**
+ * Label sessions by date, adding the start time on days that have more than
+ * one session (e.g. "Sep 21 · 6:30 AM").
+ */
+export function sessionLabeler(sessions: { date: string; started_at: string }[], timeZone?: string, long = false) {
+  const perDay = new Map<string, number>()
+  for (const s of sessions) perDay.set(s.date, (perDay.get(s.date) ?? 0) + 1)
+  return (s: { date: string; started_at: string }) => {
+    const d = long ? fmtDate(s.date) : fmtShortDate(s.date)
+    return (perDay.get(s.date) ?? 0) > 1 ? `${d} · ${fmtTime(s.started_at, timeZone)}` : d
+  }
 }
 
 export function fmtPct(n: number | null | undefined): string {
-  return n == null ? '—' : `${Math.round(n)}%`
+  return n == null ? '-' : `${Math.round(n)}%`
 }
 
 export function monthKey(d: string): string {

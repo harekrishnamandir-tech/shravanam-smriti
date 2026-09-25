@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, CardHeader, Empty, ErrorBox, Field, Input, Select, Spinner } from '../../components/ui'
 import { filterParticipants, presentCells, segmentCounts, type ClientFilters } from '../../lib/derive'
-import { fmtDate, fmtDuration, fmtHours } from '../../lib/format'
+import { fmtDate, fmtDuration, fmtHours, sessionLabeler } from '../../lib/format'
 import type { Dashboard, ParticipantStat, Segment } from '../../lib/types'
 import {
   AttendanceHeatmap,
@@ -216,7 +216,7 @@ export function CoursePage() {
           })}
           {selectedSession && (
             <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[color-mix(in_oklab,var(--saffron)_16%,transparent)] px-3 py-1 text-xs font-medium text-saffron">
-              Session: {fmtDate(selectedSession.date)}
+              Session: {sessionLabeler(d!.sessions, course.timezone, true)(selectedSession)}
               <button aria-label="Clear session filter" className="ml-1" onClick={() => f.set({ session: null })}>
                 ✕
               </button>
@@ -288,13 +288,13 @@ function DashboardBody({
 
       <Card>
         <CardHeader title="Attendance per session" subtitle="Click a bar to see who attended that session." />
-        <SessionsChart sessions={d.sessions} selected={selected} onSelect={onSelectSession} />
+        <SessionsChart sessions={d.sessions} selected={selected} onSelect={onSelectSession} tz={d.course.timezone} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title="Average minutes in call" subtitle="Per session, among devotees counted present." />
-          <AvgMinutesChart sessions={d.sessions} />
+          <AvgMinutesChart sessions={d.sessions} tz={d.course.timezone} />
         </Card>
         <Card>
           <CardHeader title="Month by month" subtitle="Average headcount and unique devotees." />

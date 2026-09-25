@@ -97,6 +97,8 @@ export interface SessionRecord {
   uploaded_at: string
   replaced_at: string | null
   rows: number
+  /** upload_preview only: overlaps the uploaded file's time window */
+  overlaps?: boolean
 }
 
 export interface UploadLogEntry {

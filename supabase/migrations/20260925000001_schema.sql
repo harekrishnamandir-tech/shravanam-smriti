@@ -97,7 +97,9 @@ create table public.sessions (
   uploaded_by_email  text,
   uploaded_at        timestamptz not null default now(),
   replaced_at        timestamptz,
-  unique (course_id, session_date, seq),
+  -- seq = order of the session within its day (1 = earliest). Deferrable so a
+  -- day can be renumbered in a single statement.
+  constraint sessions_day_seq unique (course_id, session_date, seq) deferrable initially deferred,
   check (ended_at > started_at and ended_at - started_at <= interval '24 hours')
 );
 create index on public.sessions (course_id, started_at);

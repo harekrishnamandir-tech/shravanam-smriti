@@ -33,7 +33,7 @@ export function CoursesAdminPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl font-semibold text-ink">Manage courses</h1>
-          <p className="mt-1 text-sm text-muted">Every setting can be changed later — stats recalculate automatically.</p>
+          <p className="mt-1 text-sm text-muted">Every setting can be changed later - stats recalculate automatically.</p>
         </div>
         {me?.role === 'super_admin' && !creating && (
           <Button variant="primary" onClick={() => setCreating(true)}>

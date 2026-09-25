@@ -53,8 +53,14 @@ export const api = {
   uploadLog: (courseId: string) => rpc<UploadLogEntry[]>('course_upload_log', { p_course: courseId, p_limit: 100 }),
   directory: (courseId?: string) => rpc<DirectoryEntry[]>('participant_directory', { p_course: courseId ?? null }),
 
-  uploadPreview: (courseId: string, sessionDate: string, names: string[]) =>
-    rpc<UploadPreview>('upload_preview', { p_course: courseId, p_session_date: sessionDate, p_names: names }),
+  uploadPreview: (courseId: string, m: Pick<ParsedMeeting, 'sessionDate' | 'startedAt' | 'endedAt'>, names: string[]) =>
+    rpc<UploadPreview>('upload_preview', {
+      p_course: courseId,
+      p_session_date: m.sessionDate,
+      p_names: names,
+      p_started_at: m.startedAt,
+      p_ended_at: m.endedAt,
+    }),
   ingest: (
     m: ParsedMeeting,
     opts: {

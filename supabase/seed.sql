@@ -53,6 +53,7 @@ declare
   v_course uuid;
   v_day date;
   v_start timestamp;
+  v_slot time;
   v_len int;
   v_session uuid;
   v_pid uuid;
@@ -77,24 +78,31 @@ begin
       if v_course = '22222222-2222-2222-2222-222222222222' and extract(isodow from v_day) < 6 then continue; end if;
       if v_course = '11111111-1111-1111-1111-111111111111' and random() < 0.12 then continue; end if; -- skipped days
       v_code := case when v_course = '11111111-1111-1111-1111-111111111111' then 'abc-defg-hij' else 'xyz-wxyz-xyz' end;
-      v_start := v_day + case when v_code = 'abc-defg-hij' then time '20:30' else time '07:00' end
-                 + (floor(random() * 6) || ' minutes')::interval;
+      -- The Gita course also meets early on Sundays: two sessions that day.
+      foreach v_slot in array case
+          when v_code = 'xyz-wxyz-xyz' then array[time '07:00']
+          when extract(isodow from v_day) = 7 then array[time '06:30', time '20:30']
+          else array[time '20:30'] end loop
+      v_start := v_day + v_slot + (floor(random() * 6) || ' minutes')::interval;
       v_len := 50 + floor(random() * 25)::int;
-      insert into public.sessions (course_id, session_date, meeting_code, started_at, ended_at, source_filename, uploaded_by_email)
-      values (v_course, v_day, v_code, v_start at time zone v_tz, (v_start + (v_len || ' minutes')::interval) at time zone v_tz,
+      insert into public.sessions (course_id, session_date, seq, meeting_code, started_at, ended_at, source_filename, uploaded_by_email)
+      values (v_course, v_day, (select coalesce(max(seq), 0) + 1 from public.sessions where course_id = v_course and session_date = v_day),
+              v_code, v_start at time zone v_tz, (v_start + (v_len || ' minutes')::interval) at time zone v_tz,
               'seed.csv', 'admin@example.com')
       returning id into v_session;
 
       for i in 1..array_length(v_names, 1) loop
         -- engagement drifts over the summer: some people fade, some join late
         if random() < v_weight[i] * (case when i % 5 = 0 and v_day > date '2026-08-15' then 0.3
-                                          when i % 7 = 0 and v_day < date '2026-07-15' then 0.1 else 1 end) then
+                                          when i % 7 = 0 and v_day < date '2026-07-15' then 0.1 else 1 end)
+                                   * (case when v_slot = time '06:30' then 0.6 else 1 end) then
           select id into v_pid from public.participants where name_key = public.name_key(v_names[i]);
           insert into public.attendance (session_id, participant_id, first_seen, seconds_in_call)
           values (v_session, v_pid,
                   (v_start + (case when i = 1 then 0 else floor(random() * random() * 20 * 60) end || ' seconds')::interval) at time zone v_tz,
                   case when i = 1 then v_len * 60 else greatest(60, floor(v_len * 60 * (0.35 + random() * 0.65))::int) end);
         end if;
+      end loop;
       end loop;
     end loop;
   end loop;

@@ -50,7 +50,7 @@ function CourseTile({ c }: { c: CourseCard }) {
         <div className="grid grid-cols-3 gap-5">
           <Stat label="sessions" value={c.sessions} />
           <Stat label="devotees" value={c.participants} />
-          <Stat label="avg / session" value={c.avg_headcount ?? '—'} />
+          <Stat label="avg / session" value={c.avg_headcount ?? '-'} />
         </div>
         <Sparkline values={c.spark} />
       </div>

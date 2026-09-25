@@ -19,7 +19,7 @@ function Shell({ children }: { children: ReactNode }) {
         {children}
         <blockquote className="mt-8 border-t border-line pt-5 text-sm">
           <p className="font-display text-lg italic text-ink-2">śravaṇaṁ kīrtanaṁ viṣṇoḥ smaraṇaṁ</p>
-          <p className="mt-1 text-xs text-muted">Hearing, chanting and remembering the Lord — Srimad Bhagavatam 7.5.23</p>
+          <p className="mt-1 text-xs text-muted">Hearing, chanting and remembering the Lord - Srimad Bhagavatam 7.5.23</p>
         </blockquote>
       </div>
     </div>

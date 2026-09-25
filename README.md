@@ -1,6 +1,6 @@
 # Shravanam Smriti
 
-> *śravaṇaṁ kīrtanaṁ viṣṇoḥ smaraṇaṁ* — hearing about and remembering Krishna.
+> *śravaṇaṁ kīrtanaṁ viṣṇoḥ smaraṇaṁ* - hearing about and remembering Krishna.
 
 An attendance dashboard for devotional study sessions (Bhagavad Gita, Srimad Bhagavatam and so on) held on Google Meet. It shows who comes, how often, for how long, and who might need a gentle call. It supports any number of courses and is visible to admins only. It runs for **$0**: GitHub Pages hosts the frontend and the Supabase free tier is the backend.
 
@@ -16,7 +16,8 @@ An attendance dashboard for devotional study sessions (Bhagavad Gita, Srimad Bha
   - Drop one or many Meet attendance CSVs. They are **parsed in the browser**; only names, join times and minutes are sent, and the file itself is never uploaded or stored.
   - The course is detected automatically from the meeting code.
   - Host accounts are excluded, and look-alike names are suggested as "same person?".
-  - If a session already exists for that day, you choose to **replace** it or **add another session**.
+  - A course can have **several sessions a day** (for example a morning and an evening class). Uploads are matched by time: a file at a new time becomes a separate session, and sessions within a day are numbered by start time.
+  - If a file overlaps a session that's already uploaded, you choose to **replace** it, **keep both**, or skip the file.
 - **Sessions page:** every session can be **replaced** or **deleted**, and there is an activity log.
 - **Courses are fully editable after creation:** name, slug, schedule, dates, status (active, paused, archived), timezone, host accounts, the present threshold, the regular threshold and meeting codes. Threshold and host changes apply retroactively.
 - **Admin management:** super admins manage everything. Course admins see only the courses assigned to them.

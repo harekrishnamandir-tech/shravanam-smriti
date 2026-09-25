@@ -6,7 +6,7 @@ import { barTop, chrome } from '../../components/charts/chartTheme'
 import { Badge, Card, CardHeader, Empty, ErrorBox, Spinner } from '../../components/ui'
 import { api } from '../../lib/api'
 import { byWeekdayIndex, participantTimeline, type ProfileSession } from '../../lib/derive'
-import { fmtDate, fmtDuration, fmtHours, fmtMonth, monthKey } from '../../lib/format'
+import { fmtDate, fmtDuration, fmtHours, fmtMonth, fmtTime, monthKey } from '../../lib/format'
 import type { Dashboard, ParticipantStat } from '../../lib/types'
 import { allTimeDashboardQuery } from '../course/hooks'
 import { SEGMENT_META } from '../course/segments'
@@ -148,9 +148,9 @@ export function DevoteePage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Stat label="Courses" value={rows.length} />
         <Stat label="Sessions attended" value={attended.length} />
-        <Stat label="Since joining" value={held ? `${Math.round((attended.length / held) * 100)}%` : '—'} sub={`of ${held} sessions held`} />
+        <Stat label="Since joining" value={held ? `${Math.round((attended.length / held) * 100)}%` : '-'} sub={`of ${held} sessions held`} />
         <Stat label="Total hearing" value={fmtHours(totalSeconds)} />
-        <Stat label="Avg per session" value={attended.length ? fmtDuration(totalSeconds / attended.length) : '—'} />
+        <Stat label="Avg per session" value={attended.length ? fmtDuration(totalSeconds / attended.length) : '-'} />
         <Stat label="Best streak" value={Math.max(0, ...rows.map((r) => r.stat?.longest_streak ?? 0))} sub="in any course" />
       </div>
 
@@ -231,7 +231,9 @@ export function DevoteePage() {
                 <li key={t.session.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <span className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: t.color }} aria-hidden="true" />
-                    <span className="text-ink">{fmtDate(t.session.date)}</span>
+                    <span className="text-ink">
+                      {fmtDate(t.session.date)} <span className="text-muted">· {fmtTime(t.session.started_at, t.course.timezone)}</span>
+                    </span>
                     <Link to={`/c/${t.course.slug}`} className="text-muted hover:text-brand">
                       {t.course.name}
                     </Link>

@@ -6,11 +6,12 @@ import { barTop, chrome } from '../../components/charts/chartTheme'
 import { Badge, Card, CardHeader, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui'
 import { api } from '../../lib/api'
 import { milestones, participantMonthly, participantTimeline, type ProfileSession } from '../../lib/derive'
-import { fmtDate, fmtDuration, fmtHours, fmtMonth, fmtShortDate } from '../../lib/format'
+import { fmtDate, fmtDuration, fmtHours, fmtMonth, fmtTime, sessionLabeler } from '../../lib/format'
 import { useCourseBySlug, useDashboard } from '../course/hooks'
 import { SEGMENT_META } from '../course/segments'
 
-function Timeline({ tl, mode }: { tl: ProfileSession[]; mode: 'bar' | 'line' }) {
+function Timeline({ tl, mode, tz }: { tl: ProfileSession[]; mode: 'bar' | 'line'; tz: string }) {
+  const label = sessionLabeler(tl.map((x) => x.session), tz)
   return (
     <EChart
       ariaLabel="Minutes attended in each session"
@@ -28,10 +29,10 @@ function Timeline({ tl, mode }: { tl: ProfileSession[]; mode: 'bar' | 'line' }) 
             formatter: (ps: { dataIndex: number }[]) => {
               const x = tl[ps[0].dataIndex]
               const status = x.seconds == null ? 'Absent' : x.present ? `${Math.round(x.seconds / 60)} min` : `${Math.round(x.seconds / 60)} min (below threshold)`
-              return `<b>${fmtDate(x.session.date)}</b><br/>${status} of ${Math.round(x.session.duration_sec / 60)}${x.joinDelay != null ? `<br/>Joined +${Math.round(x.joinDelay / 60)} min` : ''}`
+              return `<b>${fmtDate(x.session.date)} · ${fmtTime(x.session.started_at, tz)}</b><br/>${status} of ${Math.round(x.session.duration_sec / 60)}${x.joinDelay != null ? `<br/>Joined +${Math.round(x.joinDelay / 60)} min` : ''}`
             },
           },
-          xAxis: { ...t.categoryAxis, data: tl.map((x) => fmtShortDate(x.session.date)), boundaryGap: mode === 'bar' },
+          xAxis: { ...t.categoryAxis, data: tl.map((x) => label(x.session)), boundaryGap: mode === 'bar' },
           yAxis: { ...t.valueAxis, name: 'minutes' },
           dataZoom: n > 40 ? [{ type: 'inside', start: 100 - (40 / n) * 100, end: 100 }, { type: 'slider', height: 18, bottom: 4, showDetail: false, start: 100 - (40 / n) * 100, end: 100 }] : [],
           series: [
@@ -130,7 +131,7 @@ export function ParticipantPage() {
           subtitle={`Minutes attended per session. Faded bars are below the ${d.min_minutes}-minute threshold.`}
           actions={<Segmented label="Chart type" value={mode} onChange={setMode} options={[{ value: 'bar', label: 'Bars' }, { value: 'line', label: 'Line' }]} />}
         />
-        <Timeline tl={tl} mode={mode} />
+        <Timeline tl={tl} mode={mode} tz={course.timezone} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -144,7 +145,7 @@ export function ParticipantPage() {
             {recent.map((x) => (
               <span
                 key={x.session.id}
-                title={`${fmtDate(x.session.date)}: ${x.present ? 'present' : 'absent'}`}
+                title={`${fmtDate(x.session.date)} ${fmtTime(x.session.started_at, course.timezone)}: ${x.present ? 'present' : 'absent'}`}
                 className={`h-5 w-5 rounded-md ${x.present ? 'bg-[var(--s1)]' : 'border border-line bg-surface-2'}`}
               />
             ))}

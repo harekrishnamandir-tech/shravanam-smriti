@@ -38,7 +38,7 @@ export function AdminsPage() {
       <div>
         <h1 className="font-display text-4xl font-semibold text-ink">Admins</h1>
         <p className="mt-1 text-sm text-muted">
-          Access is granted by email — the person signs in with that Google account. Super admins see every course; course admins see
+          Access is granted by email - the person signs in with that Google account. Super admins see every course; course admins see
           only the courses ticked below.
         </p>
       </div>

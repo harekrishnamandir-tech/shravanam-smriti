@@ -4,11 +4,10 @@ import { Link, useParams } from 'react-router-dom'
 import { Badge, Button, Card, CardHeader, Empty, ErrorBox, Modal, Spinner } from '../../components/ui'
 import { api } from '../../lib/api'
 import { invalidateCourseData } from '../../lib/queries'
-import { fmtDate, fmtDateTime, fmtDuration } from '../../lib/format'
+import { fmtDate, fmtDateTime, fmtDuration, fmtTime } from '../../lib/format'
 import type { SessionRecord } from '../../lib/types'
 import { useCourseBySlug } from './hooks'
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
 
 export function SessionsPage() {
   const { slug } = useParams()
@@ -75,13 +74,13 @@ export function SessionsPage() {
                 {sessions.data.map((s) => (
                   <tr key={s.id}>
                     <td className="px-4 py-2.5 font-medium text-ink">
-                      {fmtDate(s.session_date)} {s.seq > 1 && <Badge tone="saffron">#{s.seq}</Badge>}
+                      {fmtDate(s.session_date)} {s.seq > 1 && <Badge tone="saffron">session {s.seq}</Badge>}
                     </td>
                     <td className="px-4 py-2.5 text-ink-2">
-                      {timeFmt.format(new Date(s.started_at))} · {fmtDuration(s.duration_sec)}
+                      {fmtTime(s.started_at, course.timezone)}–{fmtTime(s.ended_at, course.timezone)} · {fmtDuration(s.duration_sec)}
                     </td>
                     <td className="px-4 py-2.5 text-right">{s.rows}</td>
-                    <td className="px-4 py-2.5 text-ink-2">{s.meeting_code ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-ink-2">{s.meeting_code ?? '-'}</td>
                     <td className="px-4 py-2.5 text-xs text-muted">
                       {fmtDateTime(s.uploaded_at)}
                       {s.uploaded_by_email && <> · {s.uploaded_by_email}</>}

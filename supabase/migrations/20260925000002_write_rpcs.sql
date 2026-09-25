@@ -75,6 +75,39 @@ as $$
   select count(*)::int from d
 $$;
 
+-- Renumber a course's sessions on one day by start time (seq 1 = earliest).
+create or replace function public._renumber_day(p_course uuid, p_date date)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.sessions s set seq = r.rn
+  from (
+    select id, row_number() over (order by started_at, id) as rn
+    from public.sessions where course_id = p_course and session_date = p_date
+  ) r
+  where s.id = r.id and s.seq is distinct from r.rn
+$$;
+
+-- The course's session whose time window overlaps [p_start, p_end), if any.
+-- Two uploads describe the same session when their times overlap; sessions at
+-- different times on the same day are separate sessions.
+create or replace function public._overlapping_session(p_course uuid, p_start timestamptz, p_end timestamptz, p_exclude uuid default null)
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select id from public.sessions
+  where course_id = p_course
+    and started_at < p_end and ended_at > p_start
+    and (p_exclude is null or id <> p_exclude)
+  order by least(ended_at, p_end) - greatest(started_at, p_start) desc
+  limit 1
+$$;
+
 create or replace function public._session_json(p_session uuid)
 returns jsonb
 language sql
@@ -95,7 +128,10 @@ $$;
 -- ---------------------------------------------------------------------------
 -- Upload preview: existing sessions that day + name resolution/suggestions.
 -- ---------------------------------------------------------------------------
-create or replace function public.upload_preview(p_course uuid, p_session_date date, p_names text[])
+create or replace function public.upload_preview(
+  p_course uuid, p_session_date date, p_names text[],
+  p_started_at text default null, p_ended_at text default null  -- local 'YYYY-MM-DD HH:MM:SS'
+)
 returns jsonb
 language plpgsql
 stable
@@ -105,16 +141,30 @@ as $$
 declare
   v_existing jsonb;
   v_names    jsonb;
+  v_tz       text;
+  v_start    timestamptz;
+  v_end      timestamptz;
 begin
   perform public.assert_course_access(p_course);
+  select timezone into v_tz from public.courses where id = p_course;
+  begin
+    v_start := p_started_at::timestamp at time zone v_tz;
+    v_end   := p_ended_at::timestamp at time zone v_tz;
+  exception when others then
+    v_start := null; v_end := null;
+  end;
   if coalesce(array_length(p_names, 1), 0) > 2000 then
     raise exception 'Too many names' using errcode = '22023';
   end if;
 
-  select coalesce(jsonb_agg(public._session_json(s.id) order by s.seq), '[]'::jsonb)
+  -- Sessions that day, each flagged when it overlaps the file's time window.
+  select coalesce(jsonb_agg(public._session_json(s.id) || jsonb_build_object(
+           'overlaps', v_start is not null and s.started_at < v_end and s.ended_at > v_start
+         ) order by s.started_at), '[]'::jsonb)
     into v_existing
   from public.sessions s
-  where s.course_id = p_course and s.session_date = p_session_date;
+  where s.course_id = p_course
+    and (s.session_date = p_session_date or (v_start is not null and s.started_at < v_end and s.ended_at > v_start));
 
   with course_people as (
     select distinct p.id, p.display_name, p.name_key
@@ -183,6 +233,7 @@ declare
   v_before   int;
   v_alias    jsonb;
   v_action   public.upload_action;
+  v_old_date date;
 begin
   select * into v_course from public.courses where id = (payload->>'course_id')::uuid;
   perform public.assert_course_access(v_course.id);
@@ -227,27 +278,29 @@ begin
     on conflict (meeting_code) do nothing;
   end if;
 
-  -- Pick the target session.
+  -- Pick the target session. Uploads are matched by time window, so a
+  -- course can hold several sessions on the same day.
   if v_mode = 'replace' and payload ? 'session_id' then
     select id into v_target from public.sessions
     where id = (payload->>'session_id')::uuid and course_id = v_course.id;
     if v_target is null then
       raise exception 'Session to replace not found' using errcode = 'P0002';
     end if;
-    select seq into v_seq from public.sessions where id = v_target;
-    -- If the file is for another date, keep seq unless it collides.
-    if exists (select 1 from public.sessions where course_id = v_course.id and session_date = v_date and seq = v_seq and id <> v_target) then
-      select coalesce(max(seq), 0) + 1 into v_seq from public.sessions where course_id = v_course.id and session_date = v_date;
+    if public._overlapping_session(v_course.id, v_start, v_end, v_target) is not null then
+      raise exception 'This file overlaps a different session of the course' using errcode = '23P01';
     end if;
-  elsif v_mode = 'append' then
-    select coalesce(max(seq), 0) + 1 into v_seq from public.sessions where course_id = v_course.id and session_date = v_date;
-  else
-    v_seq := 1;
-    select id into v_target from public.sessions where course_id = v_course.id and session_date = v_date and seq = 1;
+  elsif v_mode <> 'append' then
+    v_target := public._overlapping_session(v_course.id, v_start, v_end);
     if v_target is not null and v_mode = 'create' then
       return jsonb_build_object('status', 'exists', 'existing', public._session_json(v_target));
     end if;
   end if;
+  if v_target is not null then
+    select session_date into v_old_date from public.sessions where id = v_target;
+  end if;
+  -- Provisional seq; the day is renumbered by start time below.
+  select coalesce(max(seq), 0) + 1 into v_seq
+  from public.sessions where course_id = v_course.id and session_date = v_date and id is distinct from v_target;
 
   if v_target is not null then
     select coalesce(array_agg(participant_id), '{}') into v_old_ids from public.attendance where session_id = v_target;
@@ -265,6 +318,11 @@ begin
     values (v_course.id, v_date, v_seq, v_code, v_start, v_end, left(payload->>'source_filename', 255), public.current_email())
     returning id into v_session;
     v_action := 'create';
+  end if;
+
+  perform public._renumber_day(v_course.id, v_date);
+  if v_old_date is not null and v_old_date <> v_date then
+    perform public._renumber_day(v_course.id, v_old_date);
   end if;
 
   -- "Same person" choices from the preview become aliases.
@@ -298,7 +356,8 @@ begin
 
   insert into public.upload_log (email, course_id, session_id, action, rows, details)
   values (public.current_email(), v_course.id, v_session, v_action, v_rows,
-          jsonb_build_object('filename', payload->>'source_filename', 'session_date', v_date, 'seq', v_seq, 'new_participants', v_new_ppl));
+          jsonb_build_object('filename', payload->>'source_filename', 'session_date', v_date,
+                             'seq', (select seq from public.sessions where id = v_session), 'new_participants', v_new_ppl));
 
   return jsonb_build_object(
     'status', 'ok',
@@ -328,6 +387,7 @@ begin
 
   select coalesce(array_agg(participant_id), '{}') into v_ids from public.attendance where session_id = p_session;
   delete from public.sessions where id = p_session;
+  perform public._renumber_day(v_s.course_id, v_s.session_date);
   v_n := public._gc_participants(v_ids);
 
   insert into public.upload_log (email, course_id, session_id, action, rows, details)
@@ -615,7 +675,7 @@ $$;
 revoke execute on all functions in schema public from public, anon;
 grant execute on function public.ping() to anon, authenticated;
 grant execute on function
-  public.me(), public.upload_preview(uuid, date, text[]), public.ingest_session(jsonb),
+  public.me(), public.upload_preview(uuid, date, text[], text, text), public.ingest_session(jsonb),
   public.delete_session(uuid), public.create_course(jsonb), public.update_course(uuid, jsonb),
   public.set_meeting_codes(uuid, text[]), public.delete_course(uuid, text),
   public.rename_participant(uuid, text), public.merge_participants(uuid, uuid), public.remove_alias(text),

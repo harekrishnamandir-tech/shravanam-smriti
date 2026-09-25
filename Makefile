@@ -1,4 +1,4 @@
-# Shravanam Smriti — local development shortcuts.
+# Shravanam Smriti - local development shortcuts.
 # Requires: Docker (running), Node 22, make.
 
 # `npm exec` (not `npx`) so a stray global npx on PATH cannot shadow npm's.

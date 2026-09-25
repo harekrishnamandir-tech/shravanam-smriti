@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(35);
+select plan(41);
 
 -- Users -----------------------------------------------------------------------
 delete from auth.users where email like '%@example.com'; -- drop seeded demo logins
@@ -107,6 +107,30 @@ select is((select count(*) from jsonb_array_elements(public.course_dashboard('11
 select lives_ok($$ select public.delete_session((select id from t_before)) $$, 'delete_session works');
 select is((select count(*) from public.sessions where session_date = '2026-10-01' and course_id = '11111111-1111-1111-1111-111111111111')::int,
   0, 'session is gone after delete');
+
+-- several sessions on one day ---------------------------------------------------
+create function pg_temp.up(p_start text, p_end text, p_mode text default 'create', p_session uuid default null) returns jsonb language sql as $f$
+  select public.ingest_session(jsonb_build_object(
+    'course_id', '11111111-1111-1111-1111-111111111111', 'mode', p_mode, 'started_at', p_start, 'ended_at', p_end,
+    'rows', jsonb_build_array(jsonb_build_object('name', 'Arjun Mehta', 'first_seen', p_start, 'seconds', 1200)))
+    || case when p_session is null then '{}'::jsonb else jsonb_build_object('session_id', p_session) end);
+$f$;
+create temp table t_day as select
+  (pg_temp.up('2026-10-05 06:30:00', '2026-10-05 07:30:00')->'session'->>'id')::uuid as morning,
+  (pg_temp.up('2026-10-05 20:30:00', '2026-10-05 21:30:00')->'session'->>'id')::uuid as evening;
+select isnt((select morning from t_day), (select evening from t_day), 'non-overlapping sessions on one day are kept separately');
+select is((pg_temp.up('2026-10-05 06:35:00', '2026-10-05 07:25:00')->'existing'->>'id')::uuid, (select morning from t_day),
+          'an overlapping upload is matched to the session at that time');
+select is(pg_temp.up('2026-10-05 05:00:00', '2026-10-05 06:00:00')->>'status', 'ok', 'an earlier session the same day is added');
+select is((select array_agg(seq order by started_at) from public.sessions
+           where course_id = '11111111-1111-1111-1111-111111111111' and session_date = '2026-10-05'),
+          array[1, 2, 3]::smallint[], 'sessions within a day are numbered by start time');
+select throws_ok($$ select pg_temp.up('2026-10-05 06:40:00', '2026-10-05 07:10:00', 'replace', (select evening from t_day)) $$,
+          '23P01', null, 'replacing a session with a file that overlaps another session is refused');
+select public.delete_session((select morning from t_day));
+select is((select array_agg(seq order by started_at) from public.sessions
+           where course_id = '11111111-1111-1111-1111-111111111111' and session_date = '2026-10-05'),
+          array[1, 2]::smallint[], 'deleting a session renumbers the rest of the day');
 
 -- streak math on a controlled course -------------------------------------------------
 select public.create_course('{"slug":"streak-test","name":"Streak Test","min_present_minutes":1}');

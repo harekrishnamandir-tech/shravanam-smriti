@@ -122,9 +122,9 @@ export function Leaderboard({
                 <td className="px-3 py-2 text-right">{fmtHours(p.total_seconds)}</td>
                 <td className="px-3 py-2 text-right">{Math.round(p.avg_seconds / 60)}</td>
                 <td className="px-3 py-2 text-right">{p.longest_streak}</td>
-                <td className="px-3 py-2 text-right">{p.current_streak || '—'}</td>
+                <td className="px-3 py-2 text-right">{p.current_streak || '-'}</td>
                 <td className="px-3 py-2">{fmtDate(p.last_date)}</td>
-                {sessionMinutes && <td className="px-3 py-2 text-right">{sessionMinutes.get(p.id) ?? '—'} min</td>}
+                {sessionMinutes && <td className="px-3 py-2 text-right">{sessionMinutes.get(p.id) ?? '-'} min</td>}
               </tr>
             ))}
           </tbody>

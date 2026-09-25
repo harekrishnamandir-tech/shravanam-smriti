@@ -2,7 +2,7 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* Palette: peacock blue, tulsi teal, saffron and gold on a warm cream page —
+/* Palette: peacock blue, tulsi teal, saffron and gold on a warm cream page -
    and a midnight "shyama" night sky in dark mode. */
 :root {
   color-scheme: light;
