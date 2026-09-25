@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Palette: peacock blue, tulsi teal, saffron and gold on a warm cream page —
+   and a midnight "shyama" night sky in dark mode. */
+:root {
+  color-scheme: light;
+  --page: #f7f3e9;
+  --surface: #fffdf8;
+  --surface-2: #f3eee1;
+  --ink: #16203a;
+  --ink-2: #4a5068;
+  --muted: #7d7a70;
+  --line: rgba(22, 32, 58, 0.1);
+  --grid: #e6e1d3;
+  --axis: #c9c3b1;
+  --brand: #1d4e89;
+  --brand-ink: #ffffff;
+  --teal: #1f7a6e;
+  --gold: #b7800f;
+  --saffron: #d9661f;
+  --danger: #c0392b;
+  --good: #1a7f37;
+  --focus: #2a78d6;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  --s5: #e87ba4;
+  --seq-0: #eef4fc;
+  --seq-1: #b7d3f6;
+  --seq-2: #6da7ec;
+  --seq-3: #2a78d6;
+  --seq-4: #184f95;
+  --seq-5: #0d366b;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #0b1222;
+  --surface: #131b2e;
+  --surface-2: #1a243b;
+  --ink: #f4f1e8;
+  --ink-2: #c3c2b7;
+  --muted: #8e93a3;
+  --line: rgba(255, 255, 255, 0.1);
+  --grid: #232d44;
+  --axis: #36415c;
+  --brand: #6ea8f0;
+  --brand-ink: #0b1222;
+  --teal: #3fb3a6;
+  --gold: #e8b64a;
+  --saffron: #f08a4b;
+  --danger: #ef6b5e;
+  --good: #3ccb63;
+  --focus: #6ea8f0;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+  --s5: #d55181;
+  --seq-0: #18223a;
+  --seq-1: #184f95;
+  --seq-2: #256abf;
+  --seq-3: #3987e5;
+  --seq-4: #86b6ef;
+  --seq-5: #cde2fb;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-teal: var(--teal);
+  --color-gold: var(--gold);
+  --color-saffron: var(--saffron);
+  --color-danger: var(--danger);
+  --color-good: var(--good);
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+}
+
+html,
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Soft peacock-feather glow behind the header. */
+.halo {
+  background:
+    radial-gradient(60rem 18rem at 10% -6rem, color-mix(in oklab, var(--brand) 14%, transparent), transparent 70%),
+    radial-gradient(40rem 14rem at 95% -4rem, color-mix(in oklab, var(--gold) 16%, transparent), transparent 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
