@@ -1,0 +1,40 @@
+name: Encrypted database backup
+
+# The repository is public (free GitHub Pages), so dumps are encrypted with
+# `age` before being stored as a workflow artifact. Only the holder of the
+# matching private key can read them.
+on:
+  schedule:
+    - cron: '41 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+      - name: Dump and encrypt
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp=$(date -u +%Y%m%d)
+          mkdir -p out
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f data.sql
+          tar czf - schema.sql data.sql | age -r "$AGE_RECIPIENT" -o "out/backup-$stamp.tar.gz.age"
+          shred -u schema.sql data.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: out/
+          retention-days: 90
