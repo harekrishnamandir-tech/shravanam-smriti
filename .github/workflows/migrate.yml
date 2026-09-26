@@ -1,14 +1,26 @@
 name: Apply database migrations
 
-# Run manually after merging changes under supabase/migrations.
+# Applies new files under supabase/migrations when they reach main (i.e. when
+# a PR that adds them is merged). Can be re-run by hand, but only from main:
+# the job refuses other branches, and the `production` environment is
+# restricted to main in Settings -> Environments.
 on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/**']
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Never run two migrations at once, and never cancel one half-way.
+concurrency:
+  group: database-migrations
+  cancel-in-progress: false
+
 jobs:
   push:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -16,6 +28,10 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.118.0  # pinned: "latest" queries the GitHub API and can hit its rate limit
+      - name: Pending migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
       - name: supabase db push
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

@@ -137,7 +137,9 @@ After step 1.3 (so you don't lock yourself out): **Authentication → Hooks → 
 
 ### 5. Backups and one-click migrations (optional)
 
-Two workflows need database access: **Apply database migrations** (run manually) and **Encrypted database backup** (weekly). Both read these **repository** secrets. Use repository secrets, not environment secrets (the backup job has no environment, so it couldn't read them) and not organization secrets (other repos could read them).
+Two workflows need database access: **Apply database migrations** (runs automatically when migrations are merged to `main`) and **Encrypted database backup** (weekly). Both run in the **`production` environment**, and only from `main`.
+
+First restrict the environment to `main`: **Settings → Environments → production → Deployment branches and tags → Selected branches and tags → Add rule → `main`**. (The environment is created automatically the first time a workflow uses it; create it by hand if it isn't listed yet.) Then store the secrets below **in that environment**, so no other branch can read them. Avoid repository secrets (any branch's workflows can read them) and organization secrets (other repos could read them).
 
 #### `SUPABASE_DB_URL`
 
@@ -153,22 +155,26 @@ Two workflows need database access: **Apply database migrations** (run manually)
    - URL-encode special characters: `@` → `%40`, `:` → `%3A`, `/` → `%2F`, `#` → `%23`, `%` → `%25`, `?` → `%3F`. A password of only letters and digits avoids this.
 3. **Save it from your own terminal**, so the password never ends up in a chat, issue or shell history. `gh` prompts with hidden input:
    ```bash
-   gh secret set SUPABASE_DB_URL -R <owner>/<repo>
+   gh secret set SUPABASE_DB_URL --env production -R <owner>/<repo>
    ```
-   Or use **Settings → Secrets and variables → Actions → New repository secret** on GitHub.
-4. **Check it works:** **Actions → Apply database migrations → Run workflow**. It prints the migrations it applied (or that the database is up to date).
+   Or use **Settings → Environments → production → Add environment secret** on GitHub.
+4. **Check it works:** **Actions → Apply database migrations → Run workflow** (on `main`). The *Pending migrations* step lists what will be applied, and the next step applies it (or reports that the database is up to date).
 
 #### `BACKUP_AGE_PUBLIC_KEY`
 
 1. Install [age](https://github.com/FiloSottile/age) and run `age-keygen -o backup-key.txt`.
-2. Save the printed public key (starts with `age1…`; it isn't secret) as a repository secret named `BACKUP_AGE_PUBLIC_KEY`.
+2. Save the printed public key (starts with `age1…`; it isn't secret) as a `production` environment secret named `BACKUP_AGE_PUBLIC_KEY` (`gh secret set BACKUP_AGE_PUBLIC_KEY --env production -R <owner>/<repo>`).
 3. Keep `backup-key.txt` offline (password manager or an encrypted drive). It's the only way to decrypt backups, and it must never be committed.
 
 The **Encrypted database backup** workflow then runs weekly and keeps 90 days of artifacts. To restore: download the artifact, run `age -d -i backup-key.txt backup-*.tar.gz.age | tar xz`, then `psql "<connection-string>" -f schema.sql -f data.sql`.
 
 #### Applying schema changes after a merge
 
-When a pull request adds files under `supabase/migrations/`, apply them after merging, via **Actions → Apply database migrations → Run workflow**, or locally with `npx supabase db push`. New migrations are written to be additive, so applying them just before or after the site redeploys is safe.
+This is automatic. When a pull request that adds files under `supabase/migrations/` is merged, **Apply database migrations** runs on `main` and applies them. The site redeploys at the same time, which is safe because migrations are written to be additive. Runs never overlap, and a run is never cancelled half-way.
+
+The workflow refuses to run on any branch other than `main`, and the environment rule above enforces the same thing on GitHub's side. To require a person to approve each migration before it touches the database, add yourself under **Settings → Environments → production → Required reviewers**. Merging then pauses the run until someone clicks **Approve**.
+
+You can also apply migrations from your machine with `npx supabase link --project-ref <project-ref>` and `npx supabase db push`.
 
 ### 6. Keep-alive
 
