@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(46);
+select plan(50);
 
 -- Users -----------------------------------------------------------------------
 delete from auth.users where email like '%@example.com'; -- drop seeded demo logins
@@ -37,6 +37,7 @@ select is((select count(*) from public.courses)::int, 0, 'stranger sees no cours
 select is((select count(*) from public.attendance)::int, 0, 'stranger sees no attendance');
 select is((select count(*) from public.participants)::int, 0, 'stranger sees no participants');
 select is(public.me(), null, 'stranger me() is null');
+select throws_ok($$ select public.overview_dashboard() $$, '42501', null, 'stranger cannot load the overview');
 select throws_ok($$ select public.course_dashboard('11111111-1111-1111-1111-111111111111') $$, '42501', null, 'stranger cannot load dashboard');
 select throws_ok($$ insert into public.courses (slug, name) values ('x-course', 'X') $$, '42501', null, 'direct insert is denied');
 reset role;
@@ -55,6 +56,10 @@ select is((select count(*) from public.sessions where course_id = '11111111-1111
 select ok((select count(*) from public.sessions)::int > 0, 'course admin sees own sessions');
 select throws_ok($$ select public.course_dashboard('11111111-1111-1111-1111-111111111111') $$, '42501', null, 'course admin blocked from other dashboard');
 select lives_ok($$ select public.course_dashboard('22222222-2222-2222-2222-222222222222') $$, 'course admin loads own dashboard');
+select is((select array_agg(c->>'id') from jsonb_array_elements(public.overview_dashboard()->'courses') c),
+          array['22222222-2222-2222-2222-222222222222'], 'overview shows only the course admin''s courses');
+select ok(not exists (select 1 from jsonb_array_elements(public.overview_dashboard()->'sessions') x
+                      where x->>1 <> '22222222-2222-2222-2222-222222222222'), 'overview sessions are scoped to accessible courses');
 select is(public.participant_courses((select id from public.participants where name_key = 'arjun mehta')),
           array['22222222-2222-2222-2222-222222222222'::uuid], 'participant_courses hides other courses from course admin');
 select throws_ok($$ select public.create_course('{"slug":"new-one","name":"New"}') $$, '42501', null, 'course admin cannot create courses');
@@ -67,6 +72,8 @@ reset role;
 select pg_temp.login('a0000000-0000-0000-0000-000000000001');
 set local role authenticated;
 select is((select count(*) from public.courses)::int, 2, 'super admin sees all courses');
+select ok(not (public.overview_dashboard()->'names' ?| array(select id::text from public.participants where name_key = 'host desk')),
+          'overview excludes host accounts');
 select lives_ok($$ select public.invite_admin('New.Guide@Example.com', 'course_admin', array['22222222-2222-2222-2222-222222222222'::uuid]) $$,
   'super admin invites a course admin with courses in one step');
 select is((select d->'course_ids' from jsonb_array_elements(public.admin_directory()) d where d->>'email' = 'new.guide@example.com'),

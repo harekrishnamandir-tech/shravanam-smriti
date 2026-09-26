@@ -15,6 +15,7 @@ import type {
   UploadLogEntry,
   UploadPreview,
 } from './types'
+import type { OverviewData } from './overview'
 import type { ParsedMeeting } from './parseMeetCsv'
 
 export class ApiError extends Error {
@@ -40,6 +41,8 @@ async function select<T>(query: PromiseLike<{ data: T | null; error: { message: 
 export const api = {
   me: () => rpc<Me | null>('me'),
   coursesOverview: () => rpc<CourseCard[]>('courses_overview'),
+  overview: (from?: string, to?: string) =>
+    rpc<OverviewData>('overview_dashboard', { p_from: from || null, p_to: to || null, p_include_archived: false }),
   courses: () => select<Course[]>(supabase.from('courses').select('*').order('name')),
   meetingCodes: () =>
     select<{ meeting_code: string; course_id: string }[]>(supabase.from('course_meeting_codes').select('meeting_code, course_id')),

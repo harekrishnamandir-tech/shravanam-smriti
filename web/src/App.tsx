@@ -9,12 +9,12 @@ import { ParticipantsAdminPage } from './features/admin/ParticipantsAdminPage'
 import { useAuth } from './features/auth/AuthProvider'
 import { LoginPage, NoAccessPage, NotConfiguredPage } from './features/auth/LoginPage'
 import { SessionsPage } from './features/course/SessionsPage'
-import { OverviewPage } from './features/overview/OverviewPage'
 import { UploadPage } from './features/upload/UploadPage'
 import { isConfigured } from './lib/supabase'
 
 // Chart-heavy pages load ECharts on demand.
 const CoursePage = lazy(() => import('./features/course/CoursePage').then((m) => ({ default: m.CoursePage })))
+const OverviewPage = lazy(() => import('./features/overview/OverviewPage').then((m) => ({ default: m.OverviewPage })))
 const DevoteePage = lazy(() => import('./features/participant/DevoteePage').then((m) => ({ default: m.DevoteePage })))
 const ParticipantPage = lazy(() => import('./features/participant/ParticipantPage').then((m) => ({ default: m.ParticipantPage })))
 
@@ -35,7 +35,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<OverviewPage />} />
+        <Route index element={<Suspense fallback={<Spinner />}><OverviewPage /></Suspense>} />
         <Route path="c/:slug" element={<Suspense fallback={<Spinner />}><CoursePage /></Suspense>} />
         <Route path="c/:slug/sessions" element={<SessionsPage />} />
         <Route path="c/:slug/p/:participantId" element={<Suspense fallback={<Spinner />}><ParticipantPage /></Suspense>} />
