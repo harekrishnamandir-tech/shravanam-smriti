@@ -47,7 +47,8 @@ declare
     'Vishakha Das', 'Gopal Verma', 'Damodar Joshi', 'Yashoda Kulkarni', 'Nanda Kishore', 'Mukund Reddy',
     'Shyam Sundar', 'Vrinda Menon', 'Balaram Singh', 'Subhadra Ghosh', 'Uddhav Pillai', 'Akrura Bose',
     'Sudama Mishra', 'Rukmini Bhat', 'Satyabhama Jain', 'Janaki Rao', 'Hari Prasad', 'Mohan Lal',
-    'Kanhaiya Gupta', 'Murari Saxena', 'Achyut Desai', 'Ananta Shetty', 'Jagannath Sahu', 'Tulsi Agarwal'
+    'Kanhaiya Gupta', 'Murari Saxena', 'Achyut Desai', 'Ananta Shetty', 'Jagannath Sahu', 'Tulsi Agarwal',
+    'Madhavi Rao'
   ];
   v_weight numeric[];
   v_course uuid;
@@ -93,6 +94,9 @@ begin
 
       for i in 1..array_length(v_names, 1) loop
         -- engagement drifts over the summer: some people fade, some join late
+        -- demo outreach cases: one regular stops coming, one devotee joins recently
+        if v_names[i] = 'Mohan Lal' and v_day > date '2026-09-05' then continue; end if;
+        if v_names[i] = 'Madhavi Rao' and v_day < date '2026-09-16' then continue; end if;
         if random() < v_weight[i] * (case when i % 5 = 0 and v_day > date '2026-08-15' then 0.3
                                           when i % 7 = 0 and v_day < date '2026-07-15' then 0.1 else 1 end)
                                    * (case when v_slot = time '06:30' then 0.6 else 1 end) then

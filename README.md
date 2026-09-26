@@ -6,6 +6,11 @@ An attendance dashboard for devotional study sessions (Bhagavad Gita, Srimad Bha
 
 ## Features
 
+- **Home overview across all your courses:** after signing in, admins see analytics for every course they can access (super admins: all; course admins: only theirs):
+  - summary numbers, a weekly attendance trend per course, and first-time vs returning visits
+  - a course comparison table and the latest sessions (click one to open the course filtered to that session)
+  - **Most devoted**, **Needs a gentle call** (came 3+ times but not in the last 2 weeks) and **Newcomers** lists, linking to each devotee's profile
+  - period (30 days, 90 days, this year, all time) and course filters, kept in the URL
 - **Course dashboard:**
   - sessions, unique devotees, average headcount, average time in call, regulars
   - interactive charts: attendance per session (click a bar to filter), average minutes, month by month, a devotee × session heatmap, time-in-call and joining-time distributions, weekday pattern
