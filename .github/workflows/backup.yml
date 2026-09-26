@@ -13,7 +13,11 @@ permissions:
 
 jobs:
   backup:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Same environment as migrations, so the database secret can live there
+    # and be restricted to main.
+    environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
