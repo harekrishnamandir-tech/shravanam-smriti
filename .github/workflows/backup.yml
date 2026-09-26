@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.118.0  # pinned: "latest" queries the GitHub API and can hit its rate limit
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq age
       - name: Dump and encrypt
         env:
